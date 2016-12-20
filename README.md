@@ -1,6 +1,6 @@
 # neuralnets
 
-Experimentations with Theano and TensorFlow
+Experimentations with **Theano** and **TensorFlow**
 
 These scripts are run on AWS EC2 GPU "g2.2x" instance based on AMI (Ireland) :
     
