@@ -4,11 +4,11 @@ Experimentations with Theano and TensorFlow
 
 These scripts are run on AWS EC2 GPU "g2.2x" instance based on AMI (Ireland) :
     
-    cs231n_caffe_torch7_keras_lasagne_v2 (ami-e8a1fe9b)
+cs231n_caffe_torch7_keras_lasagne_v2 **ami-e8a1fe9b**
     
 At EC2 configuration time, to setup Jupyter web I follow this tutorial :
     
-    http://efavdb.com/deep-learning-with-jupyter-on-aws/
+http://efavdb.com/deep-learning-with-jupyter-on-aws/
     
 To re-use the same folder across multiple EC2 launches I use AWS EFS :
 ```
