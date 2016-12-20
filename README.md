@@ -12,15 +12,19 @@ At EC2 configuration time, to setup Jupyter web I follow this tutorial :
     
 To re-use the same folder across multiple EC2 launches I use AWS EFS :
 ```
-($ sudo apt-get upgrade ?)
+($ sudo apt-get update ?)
 $ sudo apt-get -y install nfs-common
 ($ reboot ?)
 $ cd caffe
 $ mkdir neuralnets
 $ cd ..
 $ sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).YOUR_EFS_HERE.efs.YOUR_ZONE_HERE.amazonaws.com:/ caffe/neuralnets
-($ clone Git repo in neuralnets directory?)
+($ clone Git repo in neuralnets directory ?)
 ```
+Note : the security group of the EFS folder and EC2 instace needs to be configured correctly :
+
+http://docs.aws.amazon.com/efs/latest/ug/accessing-fs-create-security-groups.html
+
 
 The EC2 AMI comes with Theano but TensorFlow needs to be installed :
 ```
@@ -33,4 +37,8 @@ To run Theano script with GPU :
 $ cd caffe/neuralnets/nb_theano
 $ THEANO_FLAGS='floatX=float32,device=gpu' python dA.py
 ```
-    
+
+To unmount the EFS folder before closing down the EC2 instance :
+```
+$ sudo umount caffe/neuralnets
+```
