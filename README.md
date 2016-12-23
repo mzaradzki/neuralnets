@@ -14,7 +14,7 @@ To re-use the same folder across multiple EC2 launches I use AWS EFS :
 ```
 ($ sudo apt-get update ?)
 $ sudo apt-get -y install nfs-common
-($ reboot ?)
+($ sudo reboot ?)
 $ cd caffe
 $ mkdir neuralnets
 $ cd ..
@@ -31,6 +31,8 @@ The EC2 AMI comes with Theano but TensorFlow needs to be installed :
 ($ sudo easy_install --upgrade pip ?)
 $ pip install tensorflow
 ```
+
+WARNING : With this setup Theano makes use of the GPU but TensorFlow only runs on the CPU
 
 To run Theano script with GPU :
 ```
