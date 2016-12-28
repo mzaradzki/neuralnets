@@ -28,7 +28,7 @@ http://docs.aws.amazon.com/efs/latest/ug/accessing-fs-create-security-groups.htm
 
 The EC2 AMI comes with Theano but TensorFlow needs to be installed :
 ```
-($ sudo easy_install --upgrade pip ?)
+($ easy_install --upgrade pip ?)
 $ pip install tensorflow
 ```
 
