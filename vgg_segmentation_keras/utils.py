@@ -4,6 +4,7 @@ import numpy as np
 from keras.models import Sequential, Model
 from keras.layers import Input, Dropout, Permute
 from keras.layers import Convolution2D, ZeroPadding2D, MaxPooling2D, Deconvolution2D, Cropping2D
+from keras.layers import merge
 
 
 def convblock(cdim, nb, bits=3):
@@ -78,6 +79,55 @@ def fcn32_blank():
         # gist.github.com/EncodeTS/6bbe8cb8bebad7a672f0d872561782d9
         raise ValueError('not implemented')
         
+
+def fcn_32s_to_8s(fcn32model=None):
+    
+    if (fcn32model is None):
+        fcn32model = fcn32_blank()
+    
+    sp4 = Convolution2D(21, 1, 1,
+                    border_mode='same', # WARNING : zero or same ? does not matter for 1x1
+                    activation=None, # WARNING : to check
+                    name='score_pool4')
+
+    # INFO : to replicate MatConvNet.DAGN.Sum layer see documentation at :
+    # https://keras.io/getting-started/sequential-model-guide/
+    score_fused = merge([sp4(fcn32model.layers[14].output), fcn32model.layers[-1].output], mode='sum')
+
+    s4deconv = Deconvolution2D(21, 4, 4,
+                            output_shape=(None, 21, 66, 66),
+                            border_mode='valid', # WARNING : valid, same or full ?
+                            subsample=(2, 2),
+                            activation=None,
+                            name = 'score4')
+
+    crop1111 = Cropping2D(cropping=((1, 1), (1, 1))) # WARNING : cropping as deconv gained pixels
+
+    score4 = crop1111(s4deconv(score_fused))
+
+    # WARNING : check dimensions
+    sp3 = Convolution2D(21, 1, 1,
+                        border_mode='same', # WARNING : zero or same ? does not matter for 1x1
+                        activation=None, # WARNING : to check
+                        name='score_pool3')
+
+    score_final = merge([sp3(fcn32model.layers[10].output), score4], mode='sum') # WARNING : is that correct ?
+
+    upsample = Deconvolution2D(21, 16, 16,
+                            output_shape=(None, 21, 520, 520),
+                            border_mode='valid', # WARNING : valid, same or full ?
+                            subsample=(8, 8),
+                            activation=None,
+                            name = 'upsample')
+
+    bigscore = upsample(score_final)
+
+    crop4444 = Cropping2D(cropping=((4, 4), (4, 4))) # WARNING : cropping as deconv gained pixels
+
+    coarse = crop4444(bigscore)
+
+    return Model(fcn32model.input, coarse) # fcn8model
+
 
 def prediction(kmodel, crpimg, transform=False):
     
