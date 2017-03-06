@@ -78,7 +78,40 @@ def fcn32_blank():
         # See following link for a version based on Keras functional API :
         # gist.github.com/EncodeTS/6bbe8cb8bebad7a672f0d872561782d9
         raise ValueError('not implemented')
-        
+
+
+
+# WARNING : explanation about Deconvolution2D layer
+# http://stackoverflow.com/questions/39018767/deconvolution2d-layer-in-keras
+# the code example in the help (??Deconvolution2D) is very usefull too
+# ?? Deconvolution2D
+
+def fcn_32s_to_16s(fcn32model=None):
+    
+    if (fcn32model is None):
+        fcn32model = fcn32_blank()
+    
+    sp4 = Convolution2D(21, 1, 1,
+                    border_mode='same', # WARNING : zero or same ? does not matter for 1x1
+                    activation=None, # WARNING : to check
+                    name='score_pool4')
+
+    # INFO : to replicate MatConvNet.DAGN.Sum layer see documentation at :
+    # https://keras.io/getting-started/sequential-model-guide/
+    summed = merge([sp4(fcn32model.layers[14].output), fcn32model.layers[-1].output], mode='sum')
+
+    # INFO : final 16x16 upsampling of "summed" using deconv layer upsample_new (32, 32, 21, 21)
+    upnew = Deconvolution2D(21, 32, 32,
+                            output_shape=(None, 21, 528, 528),
+                            border_mode='valid', # WARNING : valid, same or full ?
+                            subsample=(16, 16),
+                            activation=None,
+                            name = 'upsample_new')
+
+    crop8 = Cropping2D(cropping=((8, 8), (8, 8))) # WARNING : cropping as deconv gained pixels
+
+    return Model(fcn32model.input, crop8(upnew(summed))) # fcn16model
+
 
 def fcn_32s_to_8s(fcn32model=None):
     
