@@ -1,3 +1,5 @@
+import copy
+import numpy as np
 
 from keras.models import Sequential, Model
 from keras.layers import Input, Dropout, Permute
@@ -75,3 +77,31 @@ def fcn32_blank():
         # See following link for a version based on Keras functional API :
         # gist.github.com/EncodeTS/6bbe8cb8bebad7a672f0d872561782d9
         raise ValueError('not implemented')
+        
+
+def prediction(kmodel, crpimg, transform=False):
+    
+    # INFO : crpimg should be a cropped image of the right dimension
+    
+    # transform=True seems more robust but I think the RGB channels are not in right order
+    
+    imarr = np.array(crpimg).astype(np.float32)
+
+    if transform:
+        imarr[:,:,0] -= 129.1863
+        imarr[:,:,1] -= 104.7624
+        imarr[:,:,2] -= 93.5940
+        #
+        # WARNING : in this script (https://github.com/rcmalli/keras-vggface) colours are switched
+        aux = copy.copy(imarr)
+        imarr[:, :, 0] = aux[:, :, 2]
+        imarr[:, :, 2] = aux[:, :, 0]
+
+        #imarr[:,:,0] -= 129.1863
+        #imarr[:,:,1] -= 104.7624
+        #imarr[:,:,2] -= 93.5940
+
+    imarr = imarr.transpose((2,0,1))
+    imarr = np.expand_dims(imarr, axis=0)
+
+    return kmodel.predict(imarr)
