@@ -104,6 +104,9 @@ def fcn_32s_to_16s(fcn32model=None):
     
     fcn32size = fcn32shape[2] # INFO: =32 when images are 512x512
     
+    if (fcn32size != 32):
+        print('WARNING : handling of image size different from 512x512 has not been tested')
+    
     sp4 = Convolution2D(21, 1, 1,
                     border_mode='same', # WARNING : zero or same ? does not matter for 1x1
                     activation=None, # WARNING : to check
@@ -146,7 +149,8 @@ def fcn_32s_to_8s(fcn32model=None):
     
     fcn32size = fcn32shape[2] # INFO: =32 when images are 512x512
     
-    assert (fcn32size == 32) # WARNING : will relax when code has been fully debugged
+    if (fcn32size != 32):
+        print('WARNING : handling of image size different from 512x512 has not been tested')
     
     sp4 = Convolution2D(21, 1, 1,
                     border_mode='same', # WARNING : zero or same ? does not matter for 1x1
