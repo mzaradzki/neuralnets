@@ -24,7 +24,7 @@ def convblock(cdim, nb, bits=3):
     return L
 
 
-def fcn32_blank():
+def fcn32_blank(image_size=512):
     
     withDO = False # no effect during evaluation but usefull for fine-tuning
     
@@ -32,8 +32,7 @@ def fcn32_blank():
         mdl = Sequential()
         
         # First layer is a dummy-permutation = Identity to specify input shape
-        #mdl.add( Permute((1,2,3), input_shape=(3,224,224)) ) # WARNING : 0 is the sample dim
-        mdl.add( Permute((1,2,3), input_shape=(3,512,512)) ) # WARNING : 0 is the sample dim
+        mdl.add( Permute((1,2,3), input_shape=(3,image_size,image_size)) ) # WARNING : axis 0 is the sample dim
 
         for l in convblock(64, 1, bits=2):
             mdl.add(l)
@@ -63,14 +62,20 @@ def fcn32_blank():
                                border_mode='same', # WARNING : zero or same ? does not matter for 1x1
                                activation='relu', name='score_fr') )
         
+        convsize = mdl.layers[-1].output_shape[2]
+        deconv_output_size = (convsize-1)*2+4 # INFO: =34 when images are 512x512
         mdl.add( Deconvolution2D(21, 4, 4,
-                                 output_shape=(None, 21, 34, 34),
+                                 output_shape=(None, 21, deconv_output_size, deconv_output_size),
                                  subsample=(2, 2),
                                  border_mode='valid', # WARNING : valid, same or full ?
                                  activation=None,
                                  name = 'score2') )
         
-        mdl.add( Cropping2D(cropping=((1, 1), (1, 1))) ) # WARNING : cropping as deconv gained pixels
+        extra_margin = deconv_output_size - convsize*2 # INFO: =2 when images are 512x512
+        assert (extra_margin > 0)
+        assert (extra_margin % 2 == 0)
+        mdl.add( Cropping2D(cropping=((extra_margin/2, extra_margin/2),
+                                      (extra_margin/2, extra_margin/2))) ) # WARNING : cropping as deconv gained pixels
         
         return mdl
     
@@ -90,6 +95,16 @@ def fcn_32s_to_16s(fcn32model=None):
     
     if (fcn32model is None):
         fcn32model = fcn32_blank()
+        
+    fcn32shape = fcn32model.layers[-1].output_shape
+    assert (len(fcn32shape) == 4)
+    assert (fcn32shape[0] is None) # batch axis
+    assert (fcn32shape[1] == 21) # number of filters
+    assert (fcn32shape[2] == fcn32shape[3]) # must be square
+    
+    fcn32size = fcn32shape[2] # INFO: =32 when images are 512x512
+    
+    #assert (fcn32size == 32) # WARNING : will relax this 512*512 image condition later on
     
     sp4 = Convolution2D(21, 1, 1,
                     border_mode='same', # WARNING : zero or same ? does not matter for 1x1
@@ -100,17 +115,24 @@ def fcn_32s_to_16s(fcn32model=None):
     # https://keras.io/getting-started/sequential-model-guide/
     summed = merge([sp4(fcn32model.layers[14].output), fcn32model.layers[-1].output], mode='sum')
 
-    # INFO : final 16x16 upsampling of "summed" using deconv layer upsample_new (32, 32, 21, 21)
+    # INFO :
+    # final 16x16 upsampling of "summed" using deconv layer upsample_new (32, 32, 21, 21)
+    # deconv setting is valid if (528-32)/16 + 1 = deconv_input_dim (= fcn32size)
+    deconv_output_size = (fcn32size-1)*16+32 # INFO: =528 when images are 512x512
     upnew = Deconvolution2D(21, 32, 32,
-                            output_shape=(None, 21, 528, 528),
+                            output_shape=(None, 21, deconv_output_size, deconv_output_size),
                             border_mode='valid', # WARNING : valid, same or full ?
                             subsample=(16, 16),
                             activation=None,
                             name = 'upsample_new')
 
-    crop8 = Cropping2D(cropping=((8, 8), (8, 8))) # WARNING : cropping as deconv gained pixels
+    extra_margin = deconv_output_size - fcn32size*16 # INFO: =16 when images are 512x512
+    assert (extra_margin > 0)
+    assert (extra_margin % 2 == 0)
+    crop_margin = Cropping2D(cropping=((extra_margin/2, extra_margin/2),
+                                       (extra_margin/2, extra_margin/2))) # WARNING : cropping as deconv gained pixels
 
-    return Model(fcn32model.input, crop8(upnew(summed))) # fcn16model
+    return Model(fcn32model.input, crop_margin(upnew(summed))) # fcn16model
 
 
 def fcn_32s_to_8s(fcn32model=None):
