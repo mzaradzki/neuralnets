@@ -75,7 +75,7 @@ def fcn32_blank(image_size=512):
         assert (extra_margin > 0)
         assert (extra_margin % 2 == 0)
         mdl.add( Cropping2D(cropping=((extra_margin/2, extra_margin/2),
-                                      (extra_margin/2, extra_margin/2))) ) # WARNING : cropping as deconv gained pixels
+                                      (extra_margin/2, extra_margin/2))) ) # INFO : cropping as deconv gained pixels
         
         return mdl
     
@@ -104,8 +104,6 @@ def fcn_32s_to_16s(fcn32model=None):
     
     fcn32size = fcn32shape[2] # INFO: =32 when images are 512x512
     
-    #assert (fcn32size == 32) # WARNING : will relax this 512*512 image condition later on
-    
     sp4 = Convolution2D(21, 1, 1,
                     border_mode='same', # WARNING : zero or same ? does not matter for 1x1
                     activation=None, # WARNING : to check
@@ -130,15 +128,25 @@ def fcn_32s_to_16s(fcn32model=None):
     assert (extra_margin > 0)
     assert (extra_margin % 2 == 0)
     crop_margin = Cropping2D(cropping=((extra_margin/2, extra_margin/2),
-                                       (extra_margin/2, extra_margin/2))) # WARNING : cropping as deconv gained pixels
+                                       (extra_margin/2, extra_margin/2))) # INFO : cropping as deconv gained pixels
 
-    return Model(fcn32model.input, crop_margin(upnew(summed))) # fcn16model
+    return Model(fcn32model.input, crop_margin(upnew(summed)))
 
 
 def fcn_32s_to_8s(fcn32model=None):
     
     if (fcn32model is None):
         fcn32model = fcn32_blank()
+        
+    fcn32shape = fcn32model.layers[-1].output_shape
+    assert (len(fcn32shape) == 4)
+    assert (fcn32shape[0] is None) # batch axis
+    assert (fcn32shape[1] == 21) # number of filters
+    assert (fcn32shape[2] == fcn32shape[3]) # must be square
+    
+    fcn32size = fcn32shape[2] # INFO: =32 when images are 512x512
+    
+    assert (fcn32size == 32) # WARNING : will relax when code has been fully debugged
     
     sp4 = Convolution2D(21, 1, 1,
                     border_mode='same', # WARNING : zero or same ? does not matter for 1x1
@@ -149,16 +157,21 @@ def fcn_32s_to_8s(fcn32model=None):
     # https://keras.io/getting-started/sequential-model-guide/
     score_fused = merge([sp4(fcn32model.layers[14].output), fcn32model.layers[-1].output], mode='sum')
 
+    deconv4_output_size = (fcn32size-1)*2+4 # INFO: =66 when images are 512x512
     s4deconv = Deconvolution2D(21, 4, 4,
-                            output_shape=(None, 21, 66, 66),
+                            output_shape=(None, 21, deconv4_output_size, deconv4_output_size),
                             border_mode='valid', # WARNING : valid, same or full ?
                             subsample=(2, 2),
                             activation=None,
                             name = 'score4')
 
-    crop1111 = Cropping2D(cropping=((1, 1), (1, 1))) # WARNING : cropping as deconv gained pixels
+    extra_margin4 = deconv4_output_size - fcn32size*2 # INFO: =2 when images are 512x512
+    assert (extra_margin4 > 0)
+    assert (extra_margin4 % 2 == 0)
+    crop_margin4 = Cropping2D(cropping=((extra_margin4/2, extra_margin4/2),
+                                        (extra_margin4/2, extra_margin4/2))) # INFO : cropping as deconv gained pixels
 
-    score4 = crop1111(s4deconv(score_fused))
+    score4 = crop_margin4(s4deconv(score_fused))
 
     # WARNING : check dimensions
     sp3 = Convolution2D(21, 1, 1,
@@ -168,8 +181,10 @@ def fcn_32s_to_8s(fcn32model=None):
 
     score_final = merge([sp3(fcn32model.layers[10].output), score4], mode='sum') # WARNING : is that correct ?
 
+    assert (fcn32size*2 == fcn32model.layers[10].output_shape[2])
+    deconvUP_output_size = (fcn32size*2-1)*8+16 # INFO: =520 when images are 512x512
     upsample = Deconvolution2D(21, 16, 16,
-                            output_shape=(None, 21, 520, 520),
+                            output_shape=(None, 21, deconvUP_output_size, deconvUP_output_size),
                             border_mode='valid', # WARNING : valid, same or full ?
                             subsample=(8, 8),
                             activation=None,
@@ -177,11 +192,15 @@ def fcn_32s_to_8s(fcn32model=None):
 
     bigscore = upsample(score_final)
 
-    crop4444 = Cropping2D(cropping=((4, 4), (4, 4))) # WARNING : cropping as deconv gained pixels
+    extra_marginUP = deconvUP_output_size - (fcn32size*2)*8 # INFO: =8 when images are 512x512
+    assert (extra_marginUP > 0)
+    assert (extra_marginUP % 2 == 0)
+    crop_marginUP = Cropping2D(cropping=((extra_marginUP/2, extra_marginUP/2),
+                                         (extra_marginUP/2, extra_marginUP/2))) # INFO : cropping as deconv gained pixels
 
-    coarse = crop4444(bigscore)
+    coarse = crop_marginUP(bigscore)
 
-    return Model(fcn32model.input, coarse) # fcn8model
+    return Model(fcn32model.input, coarse)
 
 
 def prediction(kmodel, crpimg, transform=False):
