@@ -1,17 +1,21 @@
 
-## Build model architecture
+Implements and tests the **FCN-16s** and **FCN-8s** models for image segmentation using **Keras** deep-learning library.
+
+My post on Medium explaining the model architecture and its Keras implementation :
+* https://medium.com/@m.zaradzki/image-segmentation-with-neural-net-d5094d571b1e#
 
 
-### Fully Convolutional Networks for Semantic Segmentation
-##### Jonathan Long, Evan Shelhamer, Trevor Darrell
+References from the authors of the model:
+* title: **Fully Convolutional Networks for Semantic Segmentation**
+* authors: **Jonathan Long, Evan Shelhamer, Trevor Darrell**
+* link: http://www.cv-foundation.org/openaccess/content_cvpr_2015/papers/Long_Fully_Convolutional_Networks_2015_CVPR_paper.pdf
 
-www.cv-foundation.org/openaccess/content_cvpr_2015/papers/Long_Fully_Convolutional_Networks_2015_CVPR_paper.pdf
 
-Extract from the article relating to the model architecture.
+### Extracts from the article relating to the model architecture
 
-The model is derived from VGG16.
+**remark**: The model is derived from VGG16.
 
-**remark** : deconvolution and conv-transpose are synonyms, they perform up-sampling
+**remark** : Deconvolution and conv-transpose are synonyms, they perform up-sampling.
 
 #### 4.1. From classifier to dense FCN
 
