@@ -1,6 +1,20 @@
 # neuralnets
 
-Experimentations with **Theano** and **TensorFlow**
+Experiments with **Theano**, **TensorFlow** and **Keras**
+
+
+## Main sub-projects
+
+* **autoencoder_keras** : implements auto-encoder (de-noising, variational, mixture)
+
+* **dogsandcats_keras** : implements several models and training procedure for Kaggle "dogs and cats" competition
+
+* **vgg_faces_keras** : implements face identification using VGG model
+
+* **vgg_segmentation_keras** : implements pixel wise classification of images 
+
+
+## Setup instruction on AWS
 
 These scripts are run on AWS EC2 GPU "g2.2x" instance based on AMI (Ireland) :
     
