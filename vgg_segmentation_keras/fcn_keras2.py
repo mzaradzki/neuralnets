@@ -127,6 +127,73 @@ def fcn_32s_to_16s(fcn32model=None):
 	return Model(fcn32model.input, crop_margin(upnew(summed)))
 
 
+
+def fcn_32s_to_8s(fcn32model=None):
+    if (fcn32model is None):
+        fcn32model = fcn32_blank()
+        
+       
+    fcn32shape = fcn32model.layers[-1].output_shape
+    assert (len(fcn32shape) == 4)
+    assert (fcn32shape[0] is None)  # batch axis
+    assert (fcn32shape[3] == 21)  # number of filters
+    assert (fcn32shape[1] == fcn32shape[2])  # must be square
+
+    fcn32size = fcn32shape[1]  # INFO: =32 when images are 512x512
+
+    if fcn32size != 32:
+        print('WARNING : handling of image size different from 512x512 has not been tested')
+    
+    sp4 = Convolution2D(21, kernel_size=(1, 1), padding='same', activation=None, name='score_pool4')
+
+    # INFO : to replicate MatConvNet.DAGN.Sum layer see documentation at :
+    # https://keras.io/getting-started/sequential-model-guide/
+    score_fused = add([sp4(fcn32model.layers[14].output), fcn32model.layers[-1].output])
+
+    deconv4_output_size = (fcn32size-1)*2+4 # INFO: =66 when images are 512x512
+    s4deconv = Deconvolution2D(21, kernel_size=(4, 4),
+                            #output_shape=(None, 21, deconv4_output_size, deconv4_output_size),
+                            padding='valid', # WARNING : valid, same or full ?
+                            strides=(2, 2),
+                            activation=None,
+                            name = 'score4')
+
+    extra_margin4 = deconv4_output_size - fcn32size*2 # INFO: =2 when images are 512x512
+    assert (extra_margin4 > 0)
+    assert (extra_margin4 % 2 == 0)
+    crop_margin4 = Cropping2D(cropping=int(extra_margin4/2)) # INFO : cropping as deconv gained pixels
+    score4 = crop_margin4(s4deconv(score_fused))
+
+    # WARNING : check dimensions
+    sp3 = Convolution2D(21, kernel_size=(1, 1),
+                        padding='same', # WARNING : zero or same ? does not matter for 1x1
+                        activation=None, # WARNING : to check
+                        name='score_pool3')
+    
+    score_final = add([sp3(fcn32model.layers[10].output), score4]) # WARNING : is that correct ?
+
+    assert (fcn32size*2 == fcn32model.layers[10].output_shape[2])
+    deconvUP_output_size = (fcn32size*2-1)*8+16 # INFO: =520 when images are 512x512
+    upsample = Deconvolution2D(21, kernel_size=(16, 16),
+                            #output_shape=(None, 21, deconvUP_output_size, deconvUP_output_size),
+                            padding='valid', # WARNING : valid, same or full ?
+                            strides=(8, 8),
+                            activation=None,
+                            name = 'upsample')
+
+    bigscore = upsample(score_final)
+
+    extra_marginUP = deconvUP_output_size - (fcn32size*2)*8 # INFO: =8 when images are 512x512
+    assert (extra_marginUP > 0)
+    assert (extra_marginUP % 2 == 0)
+    crop_marginUP = Cropping2D(cropping=int(extra_marginUP/2)) # INFO : cropping as deconv gained pixels
+
+    coarse = crop_marginUP(bigscore)
+
+    return Model(fcn32model.input, coarse)
+
+
+
 def prediction(kmodel, crpimg, transform=False):
 	# INFO : crpimg should be a cropped image of the right dimension
 
